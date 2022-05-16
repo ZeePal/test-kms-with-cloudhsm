@@ -1,0 +1,34 @@
+#!/usr/bin/expect -f
+set timeout 60
+
+# start cloudhsm client
+spawn /opt/cloudhsm/bin/cloudhsm_mgmt_util /opt/cloudhsm/etc/cloudhsm_mgmt_util.cfg
+
+expect "aws-cloudhsm>"
+send -- "listUsers\r"
+expect "Number of users found:"
+
+expect "aws-cloudhsm>"
+send -- "loginHSM CO admin -hpswd\r"
+expect "Enter password:"
+send -- "$env(EXPECT_ADMIN_PASSWORD)\r"
+expect "loginHSM success"
+expect "loginHSM success"
+
+expect "aws-cloudhsm>"
+send -- "createUser CU kmsuser -hpswd\r"
+expect "Enter password:"
+send -- "$env(EXPECT_KMSUSER_INIT_PASSWORD)\r"
+expect "Re-enter password:"
+send -- "$env(EXPECT_KMSUSER_INIT_PASSWORD)\r"
+expect "Do you want to continue(y/n)?"
+send -- "y\r"
+expect "createUser success"
+expect "createUser success"
+
+expect "aws-cloudhsm>"
+send -- "listUsers\r"
+expect "Number of users found:"
+
+expect "aws-cloudhsm>"
+send -- "quit\r"

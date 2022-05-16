@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+while true; do
+    status="$(aws kms describe-custom-key-stores --custom-key-store-id "${1:?}" --query 'CustomKeyStores[0].ConnectionState' --output text)"
+    echo "Key Store Status: $status"
+    if [[ "$status" != "CONNECTING" ]] && [[ "$status" != "DISCONNECTED" ]]; then
+      break
+    fi
+    sleep 10
+done
+if [ "$status" != "CONNECTED" ]; then
+    exit 1
+fi

@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+AWS_DEFAULT_REGION="$(curl --silent http://169.254.169.254/latest/meta-data/placement/region)"
+export AWS_DEFAULT_REGION
+
+
+function get_param {
+  aws ssm get-parameter --with-decryption --name "${1:?}" --query Parameter.Value --output text
+}
+
+echo "Installing jq..."
+yum install -y jq
+
+echo "Updating CloudHSM Client config..."
+service cloudhsm-client stop
+# Copy the first hsm/server config entry & repeat for the second server but with new IP & hostname
+jq '.servers[1]=.servers[0]|.servers[1].hostname="'"${1:?}"'"|.servers[1].name="'"${1:?}"'"' /opt/cloudhsm/etc/cloudhsm_mgmt_util.cfg >/opt/cloudhsm/etc/cloudhsm_mgmt_util.cfg.new
+mv /opt/cloudhsm/etc/cloudhsm_mgmt_util.cfg.new /opt/cloudhsm/etc/cloudhsm_mgmt_util.cfg
+service cloudhsm-client start
+
+echo "Getting CloudHSM secrets..."
+EXPECT_ADMIN_PASSWORD="$(get_param "/test-kms-with-cloudhsm/cloudhsm_admin_password")"
+EXPECT_KMSUSER_INIT_PASSWORD="$(get_param "/test-kms-with-cloudhsm/cloudhsm_kmsuser_init_password")"
+
+echo "Running expect..."
+export EXPECT_ADMIN_PASSWORD
+export EXPECT_KMSUSER_INIT_PASSWORD
+/tmp/create_kmsuser.expect
+echo ""
+
+echo "Done."

@@ -1,0 +1,13 @@
+# Test new aws terraform provider data source
+data "aws_kms_custom_key_store" "test" {
+  name = local.custom_key_store_name
+}
+
+# Test updated aws terraform provider resource
+resource "aws_kms_key" "test" {
+  description             = "testkmswithcloudhsm"
+  custom_key_store_id     = data.aws_kms_custom_key_store.test.id
+  deletion_window_in_days = 7
+
+  depends_on = [null_resource.wait_for_key_store_connection]
+}

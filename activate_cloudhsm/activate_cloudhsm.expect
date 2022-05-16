@@ -1,0 +1,30 @@
+#!/usr/bin/expect -f
+set timeout 60
+
+# start cloudhsm client
+spawn /opt/cloudhsm/bin/cloudhsm_mgmt_util /opt/cloudhsm/etc/cloudhsm_mgmt_util.cfg
+
+expect "aws-cloudhsm>"
+send -- "listUsers\r"
+expect "Number of users found:"
+
+expect "aws-cloudhsm>"
+send -- "loginHSM PRECO admin password\r"
+expect "loginHSM success"
+
+expect "aws-cloudhsm>"
+send -- "changePswd PRECO admin -hpswd\r"
+expect "Enter new password:"
+send -- "$env(EXPECT_NEW_ADMIN_PASSWORD)\r"
+expect "Re-enter new password:"
+send -- "$env(EXPECT_NEW_ADMIN_PASSWORD)\r"
+expect "Do you want to continue(y/n)?"
+send -- "y\r"
+expect "Changing password"
+
+expect "aws-cloudhsm>"
+send -- "listUsers\r"
+expect "Number of users found:"
+
+expect "aws-cloudhsm>"
+send -- "quit\r"

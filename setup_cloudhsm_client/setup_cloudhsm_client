@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+AWS_DEFAULT_REGION="$(curl --silent http://169.254.169.254/latest/meta-data/placement/region)"
+export AWS_DEFAULT_REGION
+
+function get_param {
+  aws ssm get-parameter --with-decryption --name "${1:?}" --query Parameter.Value --output text
+}
+
+(
+  cd /tmp
+  if [ ! -f cloudhsm-client-latest.el7.x86_64.rpm ]; then
+    echo "Installing CloudHSM Client..."
+    wget https://s3.amazonaws.com/cloudhsmv2-software/CloudHsmClient/EL7/cloudhsm-client-latest.el7.x86_64.rpm
+    yum install -y ./cloudhsm-client-latest.el7.x86_64.rpm
+  fi
+)
+
+echo "Updating CloudHSM Client config..."
+service cloudhsm-client stop
+get_param "/test-kms-with-cloudhsm/cloudhsm_ca_cert" >/opt/cloudhsm/etc/customerCA.crt
+/opt/cloudhsm/bin/configure -a "${1:?}"
+service cloudhsm-client start
+
+echo "Done."

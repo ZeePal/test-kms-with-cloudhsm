@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+AWS_DEFAULT_REGION="$(curl --silent http://169.254.169.254/latest/meta-data/placement/region)"
+export AWS_DEFAULT_REGION
+
+
+function get_param {
+  aws ssm get-parameter --with-decryption --name "${1:?}" --query Parameter.Value --output text
+}
+
+
+CLUSTER_ID="$(get_param "/test-kms-with-cloudhsm/cloudhsm_cluster_id")"
+function wait_for_cloudhsm_cluster_status {
+  echo "Waiting for CloudHSM cluster to be: ${1:?}"
+  while true; do
+    cluster_status="$(aws cloudhsmv2 describe-clusters --filters "clusterIds=$CLUSTER_ID" --query 'Clusters[0].State' --output text)"
+    echo "CloudHSM Cluster Status: $cluster_status"
+    [[ "$cluster_status" != "${1:?}" ]] || break
+    sleep 10
+  done
+}
+
+echo "Installing expect..."
+yum install -y expect
+
+echo "Getting CloudHSM secrets..."
+EXPECT_NEW_ADMIN_PASSWORD="$(get_param "/test-kms-with-cloudhsm/cloudhsm_admin_password")"
+
+wait_for_cloudhsm_cluster_status "INITIALIZED"
+
+echo "Running expect..."
+export EXPECT_NEW_ADMIN_PASSWORD
+/tmp/activate_cloudhsm.expect
+echo ""
+
+wait_for_cloudhsm_cluster_status "ACTIVE"
+echo "Done."
